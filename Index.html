@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PoseAI</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    h1 { margin: 18px 0 8px; }
+    p { color: #aaa; }
+
+    #cameraBox {
+      position: relative;
+      width: 94%;
+      max-width: 700px;
+      margin: 15px auto;
+      background: #000;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    video {
+      width: 100%;
+      display: block;
+      transform: scaleX(-1);
+    }
+
+    #message {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #aaa;
+      font-size: 18px;
+      padding: 20px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 14px 24px;
+      margin: 8px;
+      font-size: 17px;
+      font-weight: bold;
+      background: white;
+      color: black;
+    }
+
+    #stop { background: #444; color: white; }
+  </style>
+</head>
+
+<body>
+
+<h1>PoseAI</h1>
+<p>AI Camera Pose Assistant</p>
+
+<div id="cameraBox">
+  <video id="video" autoplay playsinline></video>
+  <div id="message">Camera is off</div>
+</div>
+
+<button onclick="startCamera()">📷 Start Camera</button>
+<button id="stop" onclick="stopCamera()">Stop</button>
+
+<script>
+let stream = null;
+
+async function startCamera() {
+  const message = document.getElementById("message");
+
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      message.textContent = "Camera isn't supported in this browser.";
+      return;
+    }
+
+    message.textContent = "Requesting camera...";
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: "user",
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false
+    });
+
+    const video = document.getElementById("video");
+    video.srcObject = stream;
+
+    message.style.display = "none";
+
+    await video.play();
+
+  } catch (error) {
+    console.log(error);
+    message.style.display = "flex";
+    message.textContent =
+      "Camera couldn't start. Please allow camera permission in Chrome.";
+  }
+}
+
+function stopCamera() {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
+  }
+
+  document.getElementById("video").srcObject = null;
+  document.getElementById("message").style.display = "flex";
+  document.getElementById("message").textContent = "Camera is off";
+}
+</script>
+
+</body>
+</html>Enter
