@@ -1,63 +1,273 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>Pose AI Test</title>
+
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 20px 0 10px;
+    }
+
+    #status {
+      margin: 15px;
+      padding: 15px;
+      background: #222;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+
+    video {
+      width: 95%;
+      max-width: 600px;
+      margin-top: 10px;
+      border-radius: 15px;
+      background: black;
+    }
+
+    button {
+      margin: 8px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+
+    #start {
+      background: #00c853;
+      color: white;
+    }
+
+    #stop {
+      background: #d50000;
+      color: white;
+    }
+  </style>
 </head>
 
-<body style="background:#111;color:white;text-align:center;font-family:Arial">
+<body>
 
-<h2>🤖 Pose AI Test</h2>
+  <h1>Pose AI Test</h1>
 
-<p id="status">Loading AI...</p>
+  <div id="status">
+    Starting...
+  </div>
 
-<script type="module">
+  <button id="start">Start Camera</button>
+  <button id="stop">Stop Camera</button>
 
-import {
-  PoseLandmarker,
-  FilesetResolver
-} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs";
+  <br>
 
-async function testAI() {
+  <video id="video" autoplay playsinline muted></video>
 
-  try {
+  <script type="module">
 
-    const vision =
-      await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
-      );
+    const status = document.getElementById("status");
+    const video = document.getElementById("video");
 
-    const pose =
-      await PoseLandmarker.createFromOptions(
-        vision,
-        {
-          baseOptions: {
-            modelAssetPath:
-              "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
-          },
+    let cameraStream = null;
+    let pose = null;
+    let animationFrame = null;
 
-          runningMode: "VIDEO",
-          numPoses: 1
+    function showStatus(message) {
+      status.textContent = message;
+      console.log(message);
+    }
+
+    async function loadAI() {
+
+      try {
+
+        showStatus("1/4 Loading MediaPipe library...");
+
+        const {
+          PoseLandmarker,
+          FilesetResolver
+        } = await import(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs"
+        );
+
+        showStatus("2/4 MediaPipe library loaded.");
+
+        showStatus("3/4 Loading AI engine...");
+
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
+        );
+
+        showStatus("4/4 Loading pose model...");
+
+        pose = await PoseLandmarker.createFromOptions(
+          vision,
+          {
+            baseOptions: {
+              modelAssetPath:
+                "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
+            },
+
+            runningMode: "VIDEO",
+
+            numPoses: 1
+          }
+        );
+
+        showStatus("✅ AI LOADED SUCCESSFULLY!");
+
+      } catch (error) {
+
+        console.error(error);
+
+        showStatus(
+          "❌ AI ERROR: " +
+          (error.message || error)
+        );
+      }
+    }
+
+
+    async function startCamera() {
+
+      try {
+
+        if (cameraStream) {
+          return;
         }
+
+        showStatus("Requesting camera...");
+
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: {
+              ideal: 1280
+            },
+            height: {
+              ideal: 720
+            }
+          },
+          audio: false
+        });
+
+        video.srcObject = cameraStream;
+
+        await video.play();
+
+        showStatus("Camera started.");
+
+        detectPose();
+
+      } catch (error) {
+
+        console.error(error);
+
+        showStatus(
+          "❌ CAMERA ERROR: " +
+          (error.message || error)
+        );
+      }
+    }
+
+
+    function stopCamera() {
+
+      if (cameraStream) {
+
+        cameraStream.getTracks().forEach(
+          track => track.stop()
+        );
+
+        cameraStream = null;
+      }
+
+      video.srcObject = null;
+
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+      }
+
+      showStatus("Camera stopped.");
+    }
+
+
+    function detectPose() {
+
+      if (!pose || !video.videoWidth) {
+        animationFrame = requestAnimationFrame(detectPose);
+        return;
+      }
+
+      try {
+
+        const now = performance.now();
+
+        const result = pose.detectForVideo(
+          video,
+          now
+        );
+
+        if (
+          result &&
+          result.landmarks &&
+          result.landmarks.length > 0
+        ) {
+
+          showStatus(
+            "🟢 AI DETECTING POSE!"
+          );
+
+        } else {
+
+          showStatus(
+            "🟡 AI loaded — no person detected yet."
+          );
+        }
+
+      } catch (error) {
+
+        console.error(error);
+
+        showStatus(
+          "❌ POSE ERROR: " +
+          (error.message || error)
+        );
+      }
+
+      animationFrame = requestAnimationFrame(
+        detectPose
+      );
+    }
+
+
+    document
+      .getElementById("start")
+      .addEventListener(
+        "click",
+        startCamera
       );
 
-    document.getElementById("status").textContent =
-      "✅ POSE AI LOADED!";
 
-  } catch (error) {
+    document
+      .getElementById("stop")
+      .addEventListener(
+        "click",
+        stopCamera
+      );
 
-    console.error(error);
 
-    document.getElementById("status").textContent =
-      "❌ AI ERROR: " + error.message;
+    loadAI();
 
-  }
-
-}
-
-testAI();
-
-</script>
+  </script>
 
 </body>
 </html>
