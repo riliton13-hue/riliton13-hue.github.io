@@ -1,109 +1,356 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pose AI</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    body {
-      margin: 0;
-      background: #111;
-      color: white;
-      font-family: Arial, sans-serif;
-      text-align: center;
-    }
+<title>Pose AI Camera</title>
 
-    h1 {
-      margin: 20px 0;
-    }
+<style>
+* {
+    box-sizing: border-box;
+}
 
-    #cameraBox {
-      width: 95%;
-      max-width: 800px;
-      margin: auto;
-      position: relative;
-    }
+body {
+    margin: 0;
+    background: #0b0b0f;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
 
-    video {
-      width: 100%;
-      border-radius: 15px;
-      background: #222;
-    }
+h1 {
+    margin: 18px 0 5px;
+}
 
-    button {
-      margin: 10px;
-      padding: 14px 22px;
-      border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      cursor: pointer;
-    }
+.subtitle {
+    color: #aaa;
+    margin-bottom: 15px;
+}
 
-    #message {
-      margin: 15px;
-      color: #aaa;
-    }
-  </style>
+.camera-box {
+    position: relative;
+    width: 95%;
+    max-width: 600px;
+    margin: auto;
+    background: #000;
+    border-radius: 18px;
+    overflow: hidden;
+}
+
+video {
+    width: 100%;
+    display: block;
+    background: #000;
+}
+
+#countdown {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 90px;
+    font-weight: bold;
+    display: none;
+}
+
+.controls {
+    width: 95%;
+    max-width: 600px;
+    margin: 15px auto;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+button {
+    border: none;
+    border-radius: 12px;
+    padding: 15px;
+    font-size: 16px;
+    font-weight: bold;
+    background: #252530;
+    color: white;
+}
+
+button:active {
+    transform: scale(0.97);
+}
+
+.capture {
+    grid-column: span 2;
+    background: white;
+    color: black;
+    font-size: 20px;
+}
+
+#message {
+    margin: 15px;
+    color: #aaa;
+}
+
+#preview {
+    display: none;
+    width: 95%;
+    max-width: 600px;
+    margin: 20px auto;
+    border-radius: 18px;
+}
+
+#saveBtn {
+    display: none;
+    margin: 10px auto 30px;
+    background: #25c46a;
+}
+</style>
 </head>
 
 <body>
 
-  <h1>Pose AI</h1>
+<h1>Pose AI Camera</h1>
+<div class="subtitle">AI Pose Camera • Stage 1</div>
 
-  <div id="cameraBox">
+<div class="camera-box">
+
     <video id="video" autoplay playsinline></video>
-  </div>
 
-  <div id="message">Camera is off</div>
+    <div id="countdown"></div>
 
-  <button onclick="startCamera()">Start Camera</button>
-  <button onclick="stopCamera()">Stop Camera</button>
+</div>
 
-  <script>
-    let stream = null;
+<div id="message">
+    Camera is off
+</div>
 
-    async function startCamera() {
-      const message = document.getElementById("message");
+<div class="controls">
 
-      try {
+    <button onclick="startCamera()">
+        📷 Start Camera
+    </button>
+
+    <button onclick="stopCamera()">
+        ⏹ Stop
+    </button>
+
+    <button onclick="switchCamera()">
+        🔄 Switch Camera
+    </button>
+
+    <button onclick="timerCapture()">
+        ⏱️ 3 Sec Timer
+    </button>
+
+    <button class="capture" onclick="capturePhoto()">
+        📸 TAKE PHOTO
+    </button>
+
+</div>
+
+<canvas id="canvas" style="display:none;"></canvas>
+
+<img id="preview">
+
+<button id="saveBtn" onclick="savePhoto()">
+    💾 Save Photo
+</button>
+
+<script>
+
+let stream = null;
+let currentCamera = "user";
+let lastPhoto = null;
+
+const video = document.getElementById("video");
+const message = document.getElementById("message");
+const canvas = document.getElementById("canvas");
+const preview = document.getElementById("preview");
+const saveBtn = document.getElementById("saveBtn");
+const countdown = document.getElementById("countdown");
+
+
+async function startCamera() {
+
+    try {
+
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+
         stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: "user",
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
-          audio: false
+
+            video: {
+                facingMode: currentCamera,
+                width: {
+                    ideal: 1280
+                },
+                height: {
+                    ideal: 720
+                }
+            },
+
+            audio: false
+
         });
 
-        const video = document.getElementById("video");
-
         video.srcObject = stream;
+
         message.style.display = "none";
 
         await video.play();
 
-      } catch (error) {
+    }
+
+    catch (error) {
+
         console.log(error);
 
         message.style.display = "block";
+
         message.textContent =
-          "Camera couldn't start. Please allow camera permission in Chrome.";
-      }
+            "Camera couldn't start. Please allow camera permission in Chrome.";
+
     }
 
-    function stopCamera() {
-      if (stream) {
+}
+
+
+function stopCamera() {
+
+    if (stream) {
+
         stream.getTracks().forEach(track => track.stop());
+
         stream = null;
-      }
 
-      document.getElementById("video").srcObject = null;
-
-      const message = document.getElementById("message");
-      message.style.display = "block";
-      message.textContent = "Camera is off";
     }
-  </script>
+
+    video.srcObject = null;
+
+    message.style.display = "block";
+
+    message.textContent = "Camera is off";
+
+}
+
+
+async function switchCamera() {
+
+    if (!stream) {
+
+        message.textContent = "Start the camera first.";
+
+        return;
+
+    }
+
+    currentCamera =
+        currentCamera === "user"
+        ? "environment"
+        : "user";
+
+    await startCamera();
+
+}
+
+
+function capturePhoto() {
+
+    if (!stream) {
+
+        message.style.display = "block";
+
+        message.textContent = "Start the camera first.";
+
+        return;
+
+    }
+
+    canvas.width = video.videoWidth;
+
+    canvas.height = video.videoHeight;
+
+    const context = canvas.getContext("2d");
+
+    context.drawImage(
+        video,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    lastPhoto = canvas.toDataURL("image/jpeg", 0.95);
+
+    preview.src = lastPhoto;
+
+    preview.style.display = "block";
+
+    saveBtn.style.display = "block";
+
+}
+
+
+function timerCapture() {
+
+    if (!stream) {
+
+        message.style.display = "block";
+
+        message.textContent = "Start the camera first.";
+
+        return;
+
+    }
+
+    let number = 3;
+
+    countdown.style.display = "block";
+
+    countdown.textContent = number;
+
+    const timer = setInterval(() => {
+
+        number--;
+
+        if (number > 0) {
+
+            countdown.textContent = number;
+
+        }
+
+        else {
+
+            clearInterval(timer);
+
+            countdown.style.display = "none";
+
+            capturePhoto();
+
+        }
+
+    }, 1000);
+
+}
+
+
+function savePhoto() {
+
+    if (!lastPhoto) return;
+
+    const link = document.createElement("a");
+
+    link.download =
+        "PoseAI-" +
+        new Date().getTime() +
+        ".jpg";
+
+    link.href = lastPhoto;
+
+    link.click();
+
+}
+
+</script>
 
 </body>
-</html>
+</html>here
