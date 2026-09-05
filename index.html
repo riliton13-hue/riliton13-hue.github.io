@@ -2,20 +2,252 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Button Test</title>
+  <title>Pose AI Camera</title>
+
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 15px 0;
+    }
+
+    #camera {
+      width: 95%;
+      max-width: 600px;
+      border-radius: 15px;
+      background: black;
+    }
+
+    #photo {
+      width: 95%;
+      max-width: 600px;
+      margin-top: 15px;
+      border-radius: 15px;
+      display: none;
+    }
+
+    button {
+      margin: 6px;
+      padding: 13px 18px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    #status {
+      margin: 12px;
+      min-height: 25px;
+    }
+
+    #timer {
+      font-size: 60px;
+      font-weight: bold;
+      position: fixed;
+      top: 40%;
+      left: 0;
+      right: 0;
+      display: none;
+    }
+  </style>
 </head>
 
 <body>
-  <h2>Pose AI Test</h2>
 
-  <button id="testButton">TAP ME</button>
+  <h1>🤖 Pose AI Camera</h1>
 
-  <p id="result">Waiting...</p>
+  <video id="camera" autoplay playsinline></video>
 
-  <script>
-    document.getElementById("testButton").addEventListener("click", function () {
-      document.getElementById("result").textContent = "✅ BUTTON WORKS!";
+  <div>
+    <button id="start">📷 Start Camera</button>
+    <button id="stop">⛔ Stop</button>
+    <button id="switch">🔄 Switch</button>
+  </div>
+
+  <div>
+    <button id="photoBtn">📸 Photo</button>
+    <button id="timerBtn">⏱️ 3 Sec Timer</button>
+  </div>
+
+  <p id="status">Camera stopped</p>
+
+  <div id="timer">3</div>
+
+  <img id="photo">
+
+  <br>
+
+  <a id="download" style="display:none;" download="pose-ai-photo.png">
+    <button>💾 Save Photo</button>
+  </a>
+
+  <canvas id="canvas" style="display:none;"></canvas>
+
+<script>
+
+let stream = null;
+let facingMode = "environment";
+
+const video = document.getElementById("camera");
+const photo = document.getElementById("photo");
+const canvas = document.getElementById("canvas");
+const status = document.getElementById("status");
+const timerDisplay = document.getElementById("timer");
+const download = document.getElementById("download");
+
+async function startCamera() {
+
+  status.textContent = "Starting camera...";
+
+  try {
+
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: {
+          ideal: facingMode
+        }
+      },
+      audio: false
     });
-  </script>
+
+    video.srcObject = stream;
+
+    status.textContent = "✅ Camera running";
+
+  } catch (error) {
+
+    console.error(error);
+
+    status.textContent = "❌ Camera error: " + error.name;
+
+  }
+}
+
+function stopCamera() {
+
+  if (stream) {
+
+    stream.getTracks().forEach(track => track.stop());
+
+    stream = null;
+    video.srcObject = null;
+
+  }
+
+  status.textContent = "Camera stopped";
+}
+
+async function switchCamera() {
+
+  facingMode =
+    facingMode === "user"
+      ? "environment"
+      : "user";
+
+  status.textContent = "Switching camera...";
+
+  await startCamera();
+}
+
+function takePhoto() {
+
+  if (!stream) {
+
+    status.textContent = "⚠️ Start the camera first";
+    return;
+
+  }
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  const context = canvas.getContext("2d");
+
+  context.drawImage(
+    video,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  const image = canvas.toDataURL("image/png");
+
+  photo.src = image;
+  photo.style.display = "block";
+
+  download.href = image;
+  download.style.display = "inline-block";
+
+  status.textContent = "📸 Photo captured!";
+}
+
+function startTimer() {
+
+  if (!stream) {
+
+    status.textContent = "⚠️ Start the camera first";
+    return;
+
+  }
+
+  let count = 3;
+
+  timerDisplay.textContent = count;
+  timerDisplay.style.display = "block";
+
+  const interval = setInterval(() => {
+
+    count--;
+
+    if (count > 0) {
+
+      timerDisplay.textContent = count;
+
+    } else {
+
+      clearInterval(interval);
+
+      timerDisplay.style.display = "none";
+
+      takePhoto();
+
+    }
+
+  }, 1000);
+}
+
+document
+  .getElementById("start")
+  .addEventListener("click", startCamera);
+
+document
+  .getElementById("stop")
+  .addEventListener("click", stopCamera);
+
+document
+  .getElementById("switch")
+  .addEventListener("click", switchCamera);
+
+document
+  .getElementById("photoBtn")
+  .addEventListener("click", takePhoto);
+
+document
+  .getElementById("timerBtn")
+  .addEventListener("click", startTimer);
+
+</script>
+
 </body>
 </html>
