@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pose AI Test</title>
+</head>
+
+<body style="background:#111;color:white;text-align:center;font-family:Arial">
+
+<h2>🤖 Pose AI Test</h2>
+
+<p id="status">Loading AI...</p>
+
+<script type="module">
+
+import {
+  PoseLandmarker,
+  FilesetResolver
+} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs";
+
+async function testAI() {
+
+  try {
+
+    const vision =
+      await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
+      );
+
+    const pose =
+      await PoseLandmarker.createFromOptions(
+        vision,
+        {
+          baseOptions: {
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
+          },
+
+          runningMode: "VIDEO",
+          numPoses: 1
+        }
+      );
+
+    document.getElementById("status").textContent =
+      "✅ POSE AI LOADED!";
+
+  } catch (error) {
+
+    console.error(error);
+
+    document.getElementById("status").textContent =
+      "❌ AI ERROR: " + error.message;
+
+  }
+
+}
+
+testAI();
+
+</script>
+
+</body>
+</html>
