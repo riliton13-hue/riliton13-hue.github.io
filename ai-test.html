@@ -3,271 +3,185 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>Pose AI Test</title>
+  <title>Pose AI Diagnostic</title>
 
   <style>
     body {
-      margin: 0;
       background: #111;
       color: white;
       font-family: Arial, sans-serif;
       text-align: center;
-    }
-
-    h1 {
-      margin: 20px 0 10px;
+      padding: 20px;
     }
 
     #status {
-      margin: 15px;
-      padding: 15px;
       background: #222;
-      border-radius: 10px;
-      font-size: 16px;
+      padding: 18px;
+      border-radius: 12px;
+      margin: 20px 0;
+      word-break: break-word;
     }
 
     video {
-      width: 95%;
-      max-width: 600px;
-      margin-top: 10px;
-      border-radius: 15px;
-      background: black;
+      width: 100%;
+      max-width: 500px;
+      border-radius: 12px;
     }
 
     button {
-      margin: 8px;
       padding: 12px 20px;
-      border: none;
+      margin: 8px;
+      border: 0;
       border-radius: 10px;
       font-size: 16px;
-    }
-
-    #start {
-      background: #00c853;
-      color: white;
-    }
-
-    #stop {
-      background: #d50000;
-      color: white;
     }
   </style>
 </head>
 
 <body>
 
-  <h1>Pose AI Test</h1>
+<h2>Pose AI Diagnostic</h2>
 
-  <div id="status">
-    Starting...
-  </div>
+<div id="status">Starting...</div>
 
-  <button id="start">Start Camera</button>
-  <button id="stop">Stop Camera</button>
+<button onclick="startCamera()">Start Camera</button>
+<button onclick="stopCamera()">Stop Camera</button>
 
-  <br>
+<br>
 
-  <video id="video" autoplay playsinline muted></video>
+<video id="video" autoplay playsinline muted></video>
 
-  <script type="module">
+<script type="module">
 
-    const status = document.getElementById("status");
-    const video = document.getElementById("video");
+const status = document.getElementById("status");
+const video = document.getElementById("video");
 
-    let cameraStream = null;
-    let pose = null;
-    let animationFrame = null;
+function show(text) {
+  status.textContent = text;
+  console.log(text);
+}
 
-    function showStatus(message) {
-      status.textContent = message;
-      console.log(message);
-    }
+async function testAI() {
 
-    async function loadAI() {
+  try {
 
-      try {
+    show("1/5 Connecting to MediaPipe...");
 
-        showStatus("1/4 Loading MediaPipe library...");
+    const module = await import(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.mjs"
+    );
 
-        const {
-          PoseLandmarker,
-          FilesetResolver
-        } = await import(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.mjs"
-        );
+    show("2/5 MediaPipe connected.");
 
-        showStatus("2/4 MediaPipe library loaded.");
+    const PoseLandmarker = module.PoseLandmarker;
+    const FilesetResolver = module.FilesetResolver;
 
-        showStatus("3/4 Loading AI engine...");
-
-        const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
-        );
-
-        showStatus("4/4 Loading pose model...");
-
-        pose = await PoseLandmarker.createFromOptions(
-          vision,
-          {
-            baseOptions: {
-              modelAssetPath:
-                "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
-            },
-
-            runningMode: "VIDEO",
-
-            numPoses: 1
-          }
-        );
-
-        showStatus("✅ AI LOADED SUCCESSFULLY!");
-
-      } catch (error) {
-
-        console.error(error);
-
-        showStatus(
-          "❌ AI ERROR: " +
-          (error.message || error)
-        );
-      }
-    }
-
-
-    async function startCamera() {
-
-      try {
-
-        if (cameraStream) {
-          return;
-        }
-
-        showStatus("Requesting camera...");
-
-        cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: "user",
-            width: {
-              ideal: 1280
-            },
-            height: {
-              ideal: 720
-            }
-          },
-          audio: false
-        });
-
-        video.srcObject = cameraStream;
-
-        await video.play();
-
-        showStatus("Camera started.");
-
-        detectPose();
-
-      } catch (error) {
-
-        console.error(error);
-
-        showStatus(
-          "❌ CAMERA ERROR: " +
-          (error.message || error)
-        );
-      }
-    }
-
-
-    function stopCamera() {
-
-      if (cameraStream) {
-
-        cameraStream.getTracks().forEach(
-          track => track.stop()
-        );
-
-        cameraStream = null;
-      }
-
-      video.srcObject = null;
-
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame);
-        animationFrame = null;
-      }
-
-      showStatus("Camera stopped.");
-    }
-
-
-    function detectPose() {
-
-      if (!pose || !video.videoWidth) {
-        animationFrame = requestAnimationFrame(detectPose);
-        return;
-      }
-
-      try {
-
-        const now = performance.now();
-
-        const result = pose.detectForVideo(
-          video,
-          now
-        );
-
-        if (
-          result &&
-          result.landmarks &&
-          result.landmarks.length > 0
-        ) {
-
-          showStatus(
-            "🟢 AI DETECTING POSE!"
-          );
-
-        } else {
-
-          showStatus(
-            "🟡 AI loaded — no person detected yet."
-          );
-        }
-
-      } catch (error) {
-
-        console.error(error);
-
-        showStatus(
-          "❌ POSE ERROR: " +
-          (error.message || error)
-        );
-      }
-
-      animationFrame = requestAnimationFrame(
-        detectPose
+    if (!PoseLandmarker || !FilesetResolver) {
+      throw new Error(
+        "MediaPipe loaded, but PoseLandmarker was not found."
       );
     }
 
+    show("3/5 Loading MediaPipe engine...");
 
-    document
-      .getElementById("start")
-      .addEventListener(
-        "click",
-        startCamera
-      );
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
+    );
 
+    show("4/5 Loading pose model...");
 
-    document
-      .getElementById("stop")
-      .addEventListener(
-        "click",
-        stopCamera
-      );
+    const pose = await PoseLandmarker.createFromOptions(
+      vision,
+      {
+        baseOptions: {
+          modelAssetPath:
+            "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
+        },
 
+        runningMode: "VIDEO",
 
-    loadAI();
+        numPoses: 1
+      }
+    );
 
-  </script>
+    window.pose = pose;
+
+    show("✅ AI LOADED SUCCESSFULLY!");
+
+  } catch (error) {
+
+    console.error("FULL AI ERROR:", error);
+
+    let message = "";
+
+    try {
+      message = error.message;
+    } catch (e) {}
+
+    if (!message) {
+      try {
+        message = JSON.stringify(error);
+      } catch (e) {}
+    }
+
+    if (!message) {
+      message = String(error);
+    }
+
+    show("❌ AI ERROR: " + message);
+
+  }
+
+}
+
+let stream = null;
+
+async function startCamera() {
+
+  try {
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: "user"
+      },
+      audio: false
+    });
+
+    video.srcObject = stream;
+
+    show("Camera started.");
+
+  } catch (error) {
+
+    show("❌ CAMERA ERROR: " + String(error));
+
+  }
+
+}
+
+function stopCamera() {
+
+  if (stream) {
+
+    stream.getTracks().forEach(
+      track => track.stop()
+    );
+
+    stream = null;
+  }
+
+  video.srcObject = null;
+
+  show("Camera stopped.");
+
+}
+
+window.startCamera = startCamera;
+window.stopCamera = stopCamera;
+
+testAI();
+
+</script>
 
 </body>
 </html>
